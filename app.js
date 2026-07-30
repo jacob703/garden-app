@@ -4,14 +4,29 @@
 
 const STORAGE_KEY = "bgp_beds";
 const WEATHER_URL =
-  "https://api.open-meteo.com/v1/forecast?latitude=-27.4698&longitude=153.0251&current=temperature_2m,precipitation,weather_code&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code&timezone=Australia%2FBrisbane&forecast_days=7";
+  "https://api.open-meteo.com/v1/forecast?latitude=-27.4698&longitude=153.0251&current=temperature_2m,precipitation,weather_code&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code,sunrise,sunset&timezone=Australia%2FBrisbane&forecast_days=7";
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
 ];
+const MONTH_SHORT = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
 const DEFAULT_SLOT_COUNT = 4;
+
+const LOVE_MESSAGES = [
+  "Love you baby 💕",
+  "Look at the plants! 🌱",
+  "Your garden is blooming, Em 🌻",
+  "Best gardener in Brisbane 🏆",
+  "Keep growing, keep glowing ✨",
+  "Emily's garden = pure magic 🪄",
+  "Have a beautiful day, love ☀️",
+  "So proud of your green thumb 🌿",
+];
 
 let weatherData = null; // { current: {...}, daily: {...} }
 let beds = loadBeds();
@@ -127,6 +142,7 @@ async function fetchWeather() {
       '<span class="loading">Weather unavailable right now</span>';
   }
   renderReminders();
+  renderSkyArc();
 }
 
 function renderWeatherNow() {
@@ -173,7 +189,62 @@ function renderForecastStrip() {
     .join("");
 }
 
+/* ---------- Sun/moon sky arc ---------- */
+
+function getSunMoonState(now) {
+  const daily = weatherData && weatherData.daily;
+  if (!daily || !daily.sunrise || !daily.sunset) {
+    // Fallback before weather loads: assume 6am-6pm daylight.
+    const hour = now.getHours() + now.getMinutes() / 60;
+    if (hour >= 6 && hour <= 18) {
+      return { isDay: true, t: (hour - 6) / 12 };
+    }
+    const nightHour = hour > 18 ? hour - 18 : hour + 6;
+    return { isDay: false, t: nightHour / 12 };
+  }
+
+  const sunriseToday = new Date(daily.sunrise[0]);
+  const sunsetToday = new Date(daily.sunset[0]);
+
+  if (now >= sunriseToday && now <= sunsetToday) {
+    const t = (now - sunriseToday) / (sunsetToday - sunriseToday);
+    return { isDay: true, t: Math.min(1, Math.max(0, t)) };
+  }
+
+  let nightStart, nightEnd;
+  if (now < sunriseToday) {
+    nightEnd = sunriseToday;
+    nightStart = new Date(sunsetToday.getTime() - 24 * 3600 * 1000);
+  } else {
+    nightStart = sunsetToday;
+    nightEnd = daily.sunrise[1] ? new Date(daily.sunrise[1]) : new Date(sunriseToday.getTime() + 24 * 3600 * 1000);
+  }
+  const t = (now - nightStart) / (nightEnd - nightStart);
+  return { isDay: false, t: Math.min(1, Math.max(0, t)) };
+}
+
+function renderSkyArc() {
+  const arc = document.getElementById("skyArc");
+  const body = document.getElementById("skyBody");
+  if (!arc || !body) return;
+
+  const state = getSunMoonState(new Date());
+  const arcHeight = arc.clientHeight - 26;
+  const leftPct = 6 + state.t * 88;
+  const bottomPx = 6 + Math.sin(state.t * Math.PI) * Math.max(0, arcHeight);
+
+  body.textContent = state.isDay ? "☀️" : "🌙";
+  body.style.left = `${leftPct}%`;
+  body.style.bottom = `${bottomPx}px`;
+  arc.classList.toggle("sky-night", !state.isDay);
+}
+
 /* ---------- What to plant now ---------- */
+
+function plantTooltip(plant) {
+  const sowMonths = plant.months.map((m) => MONTH_SHORT[m]).join(", ");
+  return `Sow: ${sowMonths} · Water every ${plant.wateringDays}d · Harvest in ~${plant.daysToHarvest}d · ${plant.sun}`;
+}
 
 function renderPlantNow() {
   const month = new Date().getMonth();
@@ -184,7 +255,7 @@ function renderPlantNow() {
     return;
   }
   chipRow.innerHTML = inSeason
-    .map((p) => `<span class="chip">${p.emoji} ${p.name}</span>`)
+    .map((p) => `<span class="chip" tabindex="0" data-tooltip="${escapeHtml(plantTooltip(p))}">${p.emoji} ${p.name}</span>`)
     .join("");
 }
 
@@ -193,7 +264,7 @@ function renderPlantNow() {
 function getGrowthVisual(plant, pct) {
   const clamped = Math.min(100, pct);
   const emoji = clamped < 15 ? "🌱" : plant.emoji;
-  const size = (1.1 + (clamped / 100) * 1.1).toFixed(2); // 1.10rem -> 2.20rem
+  const size = (0.95 + (clamped / 100) * 1.05).toFixed(2); // 0.95rem -> 2.00rem
   return { emoji, size };
 }
 
@@ -260,8 +331,11 @@ function renderPlot(plot, index) {
       ${ready ? '<span class="plot-sparkle">✨</span>' : ""}
       <button class="plot-mini-btn plot-water" data-action="water-slot" data-slot="${index}" title="Water">💧</button>
       <button class="plot-mini-btn plot-clear" data-action="clear-slot" data-slot="${index}" title="Clear">🗑️</button>
-      <span class="plot-mound"></span>
-      <span class="plot-sprite" style="font-size:${visual.size}rem;">${visual.emoji}</span>
+      <div class="plot-visual">
+        <span class="plot-mound"></span>
+        <span class="plot-sprite" style="font-size:${visual.size}rem;">${visual.emoji}</span>
+      </div>
+      <span class="plot-label">${escapeHtml(plant.name)}</span>
       <div class="plot-progress"><div class="plot-progress-fill ${ready ? "ready" : ""}" style="width:${pct}%"></div></div>
     </div>
   `;
@@ -531,6 +605,119 @@ function renderReminders() {
     .join("");
 }
 
+/* ---------- Floating love messages ---------- */
+
+function spawnFloatMessage() {
+  const layer = document.getElementById("floatMessages");
+  if (!layer) return;
+  const msg = LOVE_MESSAGES[Math.floor(Math.random() * LOVE_MESSAGES.length)];
+  const el = document.createElement("div");
+  el.className = "float-message";
+  el.textContent = msg;
+  el.style.left = `${8 + Math.random() * 78}%`;
+  el.style.setProperty("--drift", `${Math.random() * 60 - 30}px`);
+  layer.appendChild(el);
+  el.addEventListener("animationend", () => el.remove());
+}
+
+function scheduleFloatMessages() {
+  const delay = 16000 + Math.random() * 20000; // 16s - 36s
+  setTimeout(() => {
+    spawnFloatMessage();
+    scheduleFloatMessages();
+  }, delay);
+}
+
+/* ---------- Garth, the garden guardian ---------- */
+
+const GARTH_KEY = "bgp_garth_treats";
+let garthCycleTimeout = null;
+let garthBusyUntil = 0;
+
+function loadGarthTreats() {
+  try {
+    const raw = localStorage.getItem(GARTH_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    if (parsed && parsed.date === todayISO()) return parsed.count;
+    return 0;
+  } catch (e) {
+    return 0;
+  }
+}
+
+function saveGarthTreats(count) {
+  localStorage.setItem(GARTH_KEY, JSON.stringify({ date: todayISO(), count }));
+}
+
+function plantedPlantNames() {
+  const names = [];
+  beds.forEach((bed) => bed.plots.forEach((p) => { if (p.plantName) names.push(p.plantName); }));
+  return names;
+}
+
+function setGarthState(state, speech) {
+  const sprite = document.getElementById("garthSprite");
+  const bubble = document.getElementById("garthSpeech");
+  if (!sprite || !bubble) return;
+  sprite.className = `garth-sprite garth-${state}`;
+  sprite.textContent = state === "happy" ? "🐶💕" : state === "sniffing" ? "🐶" : "🐶";
+  if (speech) {
+    bubble.textContent = speech;
+    bubble.classList.remove("hidden");
+  } else {
+    bubble.classList.add("hidden");
+  }
+}
+
+function garthIdleCycle() {
+  if (Date.now() < garthBusyUntil) {
+    scheduleGarthCycle();
+    return;
+  }
+  const names = plantedPlantNames();
+  const willSniff = Math.random() < 0.5;
+
+  if (willSniff) {
+    const target = names.length ? names[Math.floor(Math.random() * names.length)] : null;
+    setGarthState("sniffing", target ? `Garth is sniffing the ${target}! 👃` : "Garth is patrolling the empty beds 🐾");
+    setTimeout(() => {
+      if (Date.now() >= garthBusyUntil) setGarthState("sleeping", null);
+    }, 5000);
+  } else {
+    setGarthState("sleeping", null);
+  }
+  scheduleGarthCycle();
+}
+
+function scheduleGarthCycle() {
+  if (garthCycleTimeout) clearTimeout(garthCycleTimeout);
+  const delay = 20000 + Math.random() * 25000; // 20s - 45s
+  garthCycleTimeout = setTimeout(garthIdleCycle, delay);
+}
+
+function giveGarthTreat() {
+  const count = loadGarthTreats() + 1;
+  saveGarthTreats(count);
+  renderGarthTreatCount(count);
+
+  garthBusyUntil = Date.now() + 3000;
+  setGarthState("happy", "Woof! Thank you!! 🦴");
+  setTimeout(() => {
+    if (Date.now() >= garthBusyUntil) setGarthState("sleeping", null);
+  }, 3000);
+}
+
+function renderGarthTreatCount(count) {
+  const el = document.getElementById("garthTreatCount");
+  if (el) el.textContent = `Treats today: ${count}`;
+}
+
+function initGarth() {
+  renderGarthTreatCount(loadGarthTreats());
+  setGarthState("sleeping", null);
+  scheduleGarthCycle();
+}
+
 /* ---------- Event wiring ---------- */
 
 function wireEvents() {
@@ -583,6 +770,8 @@ function wireEvents() {
     if (!btn) return;
     waterSlot(btn.dataset.markWateredBed, parseInt(btn.dataset.markWateredSlot, 10));
   });
+
+  document.getElementById("garthTreatBtn").addEventListener("click", giveGarthTreat);
 }
 
 /* ---------- Init ---------- */
@@ -594,6 +783,10 @@ function init() {
   renderReminders();
   wireEvents();
   fetchWeather();
+  renderSkyArc();
+  setInterval(renderSkyArc, 5 * 60 * 1000);
+  scheduleFloatMessages();
+  initGarth();
 }
 
 document.addEventListener("DOMContentLoaded", init);
