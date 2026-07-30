@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Brisbane Garden Planner</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <div class="brand">
+      <span class="brand-emoji">🌱</span>
+      <div>
+        <h1>Brisbane Garden Planner</h1>
+        <p id="seasonLine" class="season-line">Loading season…</p>
+      </div>
+    </div>
+    <div id="weatherNow" class="weather-now">
+      <span class="loading">Loading weather…</span>
+    </div>
+  </div>
+  <div id="forecastStrip" class="forecast-strip"></div>
+</header>
+
+<main class="layout">
+
+  <section class="panel" id="whatToPlantPanel">
+    <h2>🌤️ What to plant now</h2>
+    <p class="panel-sub">Good sowing choices for this month in Brisbane</p>
+    <div id="plantNowChips" class="chip-row"></div>
+  </section>
+
+  <section class="panel" id="remindersPanel">
+    <h2>🔔 Daily reminders</h2>
+    <div id="remindersList" class="reminders-list">
+      <p class="empty-note">No garden beds yet — add one below to get started.</p>
+    </div>
+  </section>
+
+  <section class="panel beds-panel">
+    <div class="beds-panel-header">
+      <h2>🪴 Garden beds</h2>
+      <button id="addBedBtn" class="btn btn-primary">+ Add bed</button>
+    </div>
+    <div id="bedsGrid" class="beds-grid"></div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <p>Weather data from Open-Meteo · All data stored locally in your browser</p>
+</footer>
+
+<!-- Plant picker modal -->
+<div id="plantModal" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="plantModalTitle">Choose a plant</h2>
+      <button id="closePlantModal" class="btn-icon" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="plantPickerGrid" class="plant-picker-grid"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Add/rename bed modal -->
+<div id="bedModal" class="modal-overlay hidden">
+  <div class="modal modal-small">
+    <div class="modal-header">
+      <h2 id="bedModalTitle">Add garden bed</h2>
+      <button id="closeBedModal" class="btn-icon" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <label for="bedNameInput">Bed / pot name</label>
+      <input type="text" id="bedNameInput" placeholder="e.g. Raised bed 1, Balcony pot">
+      <div class="modal-actions">
+        <button id="saveBedBtn" class="btn btn-primary">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="plants.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
