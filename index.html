@@ -27,29 +27,37 @@
   <div id="forecastStrip" class="forecast-strip"></div>
 </header>
 
-<div class="dedication">
-  <span class="dedication-heart">💌</span>
-  For my dearest <strong>Emily</strong> — for your beautiful garden and the love you grow in it.
-  <span class="dedication-sign">With all my love, Jacob 🌻</span>
+<div class="dedication-sign-wrap">
+  <div class="dedication">
+    <span class="dedication-heart">💌</span>
+    For my dearest <strong>Emily</strong> — for your beautiful garden and the love you grow in it.
+    <span class="dedication-sign">With all my love, Jacob 🌻</span>
+  </div>
 </div>
 
-<main class="layout">
+<main class="scene">
 
-  <section class="panel" id="whatToPlantPanel">
-    <h2>🌤️ What to plant now</h2>
-    <p class="panel-sub">Good sowing choices for this month in Brisbane</p>
-    <div id="plantNowChips" class="chip-row"></div>
-  </section>
-
-  <section class="panel" id="remindersPanel">
-    <h2>🔔 Daily reminders</h2>
-    <div id="remindersList" class="reminders-list">
-      <p class="empty-note">No garden beds yet — add one below to get started.</p>
+  <section class="sign-board" id="whatToPlantPanel">
+    <div class="sign-post"></div>
+    <div class="sign-parchment">
+      <h2>🌤️ What to plant now</h2>
+      <p class="panel-sub">Good sowing choices for this month in Brisbane</p>
+      <div id="plantNowChips" class="chip-row"></div>
     </div>
   </section>
 
-  <section class="panel beds-panel">
-    <div class="beds-panel-header">
+  <section class="sign-board" id="remindersPanel">
+    <div class="sign-post"></div>
+    <div class="sign-parchment">
+      <h2>🔔 Daily reminders</h2>
+      <div id="remindersList" class="reminders-list">
+        <p class="empty-note">No garden beds yet — add one below to get started.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="garden-plot-area">
+    <div class="scene-toolbar">
       <h2>🪴 Garden beds</h2>
       <div class="beds-panel-actions">
         <button id="shareBedsBtn" class="btn btn-secondary btn-sm">🔗 Share my garden</button>

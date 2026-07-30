@@ -343,19 +343,36 @@ function getSunMoonState(now) {
 }
 
 function renderSkyArc() {
+  const state = getSunMoonState(new Date());
+  const elevation = Math.sin(state.t * Math.PI); // 0 at rise/set, 1 at peak
+  const leftPct = 6 + state.t * 88;
+
   const arc = document.getElementById("skyArc");
   const body = document.getElementById("skyBody");
-  if (!arc || !body) return;
+  if (arc && body) {
+    const arcHeight = arc.clientHeight - 26;
+    const bottomPx = 6 + elevation * Math.max(0, arcHeight);
+    body.textContent = state.isDay ? "☀️" : "🌙";
+    body.style.left = `${leftPct}%`;
+    body.style.bottom = `${bottomPx}px`;
+    arc.classList.toggle("sky-night", !state.isDay);
+  }
 
-  const state = getSunMoonState(new Date());
-  const arcHeight = arc.clientHeight - 26;
-  const leftPct = 6 + state.t * 88;
-  const bottomPx = 6 + Math.sin(state.t * Math.PI) * Math.max(0, arcHeight);
+  // Drive global scene lighting (shadows + ambient glow) from the same sun/moon position,
+  // so garden beds, Garth's bed, and signs all shade consistently as the day passes.
+  const dirFactor = (state.t - 0.5) * -2; // -1 (sun low-left) .. 1 (sun low-right), 0 at zenith
+  const shadowLen = state.isDay ? 3 + (1 - elevation) * 7 : 2 + (1 - elevation) * 3;
+  const shadowX = (dirFactor * shadowLen).toFixed(1);
+  const shadowY = (state.isDay ? 3 + (1 - elevation) * 4 : 2 + (1 - elevation) * 2).toFixed(1);
+  const glow = state.isDay
+    ? `rgba(255, 230, 150, ${(0.14 + elevation * 0.18).toFixed(2)})`
+    : `rgba(140, 170, 255, ${(0.08 + elevation * 0.08).toFixed(2)})`;
 
-  body.textContent = state.isDay ? "☀️" : "🌙";
-  body.style.left = `${leftPct}%`;
-  body.style.bottom = `${bottomPx}px`;
-  arc.classList.toggle("sky-night", !state.isDay);
+  const root = document.documentElement.style;
+  root.setProperty("--scene-shadow-x", `${shadowX}px`);
+  root.setProperty("--scene-shadow-y", `${shadowY}px`);
+  root.setProperty("--scene-glow", glow);
+  root.setProperty("--sun-x-pct", `${leftPct.toFixed(1)}%`);
 }
 
 /* ---------- What to plant now ---------- */
