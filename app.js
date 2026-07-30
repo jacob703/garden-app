@@ -17,6 +17,52 @@ const MONTH_SHORT = [
 ];
 const DEFAULT_SLOT_COUNT = 4;
 
+const PLANT_ACCENTS = {
+  Tomato: "#d9534f", Capsicum: "#e0703a", Chilli: "#c0392b", Cucumber: "#4c8c3f",
+  Zucchini: "#f0c419", "Sweet corn": "#f0c419", "Sweet potato": "#c9924f", Beetroot: "#a23b5c",
+  Broccoli: "#4c8c3f", Cabbage: "#8fce5c", Carrot: "#e8843c", Lettuce: "#8fce5c",
+  Onion: "#c9924f", Pea: "#6fae6f", Radish: "#d9534f", Silverbeet: "#c0392b",
+  Spinach: "#4c8c3f", Garlic: "#f0e4cf", Potato: "#c9924f", Ginger: "#e0ab72",
+  Rockmelon: "#e8843c", Watermelon: "#e05c6e", Pumpkin: "#e8843c", "Snow pea": "#6fae6f",
+  Rosemary: "#6a8f5c", Coriander: "#6fae6f", Mint: "#4fae7a", Parsley: "#4c8c3f",
+  Eggplant: "#6a4c93", Basil: "#4fae7a",
+};
+
+function plantAccent(name) {
+  return PLANT_ACCENTS[name] || "#8fce5c";
+}
+
+function plantSpriteSVG(stage, accent) {
+  if (stage === 0) {
+    return `<svg viewBox="0 0 6 6" shape-rendering="crispEdges" class="plant-svg">
+      <rect x="2" y="4" width="2" height="2" fill="#6b4423"/>
+      <rect x="2" y="2" width="1" height="2" fill="#5c9c3f"/>
+      <rect x="3" y="1" width="1" height="3" fill="#5c9c3f"/>
+      <rect x="1" y="2" width="1" height="1" fill="#8fce5c"/>
+      <rect x="4" y="1" width="1" height="1" fill="#8fce5c"/>
+    </svg>`;
+  }
+  if (stage === 1) {
+    return `<svg viewBox="0 0 10 10" shape-rendering="crispEdges" class="plant-svg">
+      <rect x="4" y="7" width="2" height="3" fill="#6b4423"/>
+      <rect x="3" y="5" width="4" height="2" fill="#5c9c3f"/>
+      <rect x="2" y="6" width="1" height="2" fill="#5c9c3f"/>
+      <rect x="7" y="6" width="1" height="2" fill="#5c9c3f"/>
+      <rect x="3" y="4" width="4" height="1" fill="#8fce5c"/>
+      <rect x="4" y="3" width="2" height="1" fill="#8fce5c"/>
+    </svg>`;
+  }
+  return `<svg viewBox="0 0 10 10" shape-rendering="crispEdges" class="plant-svg">
+    <rect x="4" y="8" width="2" height="2" fill="#6b4423"/>
+    <rect x="2" y="6" width="6" height="2" fill="#5c9c3f"/>
+    <rect x="1" y="7" width="1" height="1" fill="#5c9c3f"/>
+    <rect x="8" y="7" width="1" height="1" fill="#5c9c3f"/>
+    <rect x="2" y="4" width="6" height="2" fill="#8fce5c"/>
+    <rect x="3" y="2" width="4" height="2" fill="${accent}"/>
+    <rect x="4" y="1" width="2" height="1" fill="${accent}"/>
+  </svg>`;
+}
+
 const LOVE_MESSAGES = [
   "Love you baby 💕",
   "Look at the plants! 🌱",
@@ -336,9 +382,10 @@ function renderPlantNow() {
 
 function getGrowthVisual(plant, pct) {
   const clamped = Math.min(100, pct);
-  const emoji = clamped < 15 ? "🌱" : plant.emoji;
-  const size = (0.95 + (clamped / 100) * 1.05).toFixed(2); // 0.95rem -> 2.00rem
-  return { emoji, size };
+  const stage = clamped < 20 ? 0 : clamped < 65 ? 1 : 2;
+  const scale = (0.8 + (clamped / 100) * 0.9).toFixed(2); // 0.80 -> 1.70
+  const svg = plantSpriteSVG(stage, plantAccent(plant.name));
+  return { svg, scale };
 }
 
 /* ---------- Beds rendering ---------- */
@@ -406,7 +453,7 @@ function renderPlot(plot, index) {
       <button class="plot-mini-btn plot-clear" data-action="clear-slot" data-slot="${index}" title="Clear">🗑️</button>
       <div class="plot-visual">
         <span class="plot-mound"></span>
-        <span class="plot-sprite" style="font-size:${visual.size}rem;">${visual.emoji}</span>
+        <span class="plot-sprite" style="transform:scale(${visual.scale});">${visual.svg}</span>
       </div>
       <span class="plot-label">${escapeHtml(plant.name)}</span>
       <div class="plot-progress"><div class="plot-progress-fill ${ready ? "ready" : ""}" style="width:${pct}%"></div></div>
