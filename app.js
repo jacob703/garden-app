@@ -11,10 +11,12 @@ const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
 ];
+const DEFAULT_SLOT_COUNT = 4;
 
 let weatherData = null; // { current: {...}, daily: {...} }
 let beds = loadBeds();
 let plantModalBedId = null;
+let plantModalSlotIndex = null;
 let bedModalMode = "add"; // "add" | "rename"
 let bedModalTargetId = null;
 
@@ -64,15 +66,35 @@ function findPlant(name) {
   return PLANTS.find((p) => p.name === name) || null;
 }
 
+function emptyPlot() {
+  return { plantName: null, plantedDate: null, lastWatered: null };
+}
+
 /* ---------- Storage ---------- */
 
 function loadBeds() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return parsed.map(migrateBed);
   } catch (e) {
     return [];
   }
+}
+
+function migrateBed(bed) {
+  if (Array.isArray(bed.plots)) return bed;
+  // Legacy single-plant-per-bed format.
+  const plots = Array.from({ length: DEFAULT_SLOT_COUNT }, emptyPlot);
+  if (bed.plantName) {
+    plots[0] = {
+      plantName: bed.plantName,
+      plantedDate: bed.plantedDate,
+      lastWatered: bed.lastWatered,
+    };
+  }
+  return { id: bed.id, name: bed.name, plots };
 }
 
 function saveBeds() {
@@ -166,6 +188,15 @@ function renderPlantNow() {
     .join("");
 }
 
+/* ---------- Growth visuals ---------- */
+
+function getGrowthVisual(plant, pct) {
+  const clamped = Math.min(100, pct);
+  const emoji = clamped < 15 ? "🌱" : plant.emoji;
+  const size = (1.1 + (clamped / 100) * 1.1).toFixed(2); // 1.10rem -> 2.20rem
+  return { emoji, size };
+}
+
 /* ---------- Beds rendering ---------- */
 
 function renderBeds() {
@@ -175,65 +206,65 @@ function renderBeds() {
     return;
   }
 
-  const month = new Date().getMonth();
+  grid.innerHTML = beds.map((bed) => renderBedCard(bed)).join("");
+}
 
-  grid.innerHTML = beds
-    .map((bed) => {
-      const plant = bed.plantName ? findPlant(bed.plantName) : null;
-
-      if (!plant) {
-        return `
-          <div class="bed-card" data-bed-id="${bed.id}">
-            <div class="bed-card-header">
-              <span class="bed-name">${escapeHtml(bed.name)}</span>
-              <div class="bed-actions">
-                <button class="btn-icon" data-action="rename" title="Rename">✏️</button>
-                <button class="btn-icon" data-action="remove" title="Remove bed">🗑️</button>
-              </div>
-            </div>
-            <div class="bed-empty">
-              <span>Nothing planted here</span>
-              <button class="btn btn-primary btn-sm" data-action="plant">+ Plant something</button>
-            </div>
-          </div>
-        `;
-      }
-
-      const daysPlanted = daysSince(bed.plantedDate);
-      const pct = Math.min(100, Math.round((daysPlanted / plant.daysToHarvest) * 100));
-      const ready = daysPlanted >= plant.daysToHarvest;
-      const remaining = plant.daysToHarvest - daysPlanted;
-      const daysWatered = daysSince(bed.lastWatered);
-
-      return `
-        <div class="bed-card" data-bed-id="${bed.id}">
-          <div class="bed-card-header">
-            <span class="bed-name">${escapeHtml(bed.name)}</span>
-            <div class="bed-actions">
-              <button class="btn-icon" data-action="rename" title="Rename">✏️</button>
-              <button class="btn-icon" data-action="remove" title="Remove bed">🗑️</button>
-            </div>
-          </div>
-          <div class="bed-plant-row">
-            <span class="plant-emoji">${plant.emoji}</span>
-            <span>${plant.name}</span>
-          </div>
-          <div class="bed-meta">Planted ${daysPlanted} day${daysPlanted === 1 ? "" : "s"} ago</div>
-          <div class="progress-track">
-            <div class="progress-fill ${ready ? "ready" : ""}" style="width:${pct}%"></div>
-          </div>
-          <div class="bed-status ${ready ? "ready" : ""}">
-            ${ready ? "Ready to harvest!" : `~${remaining} day${remaining === 1 ? "" : "s"} to harvest`}
-          </div>
-          <div class="bed-meta">Last watered ${daysWatered === 0 ? "today" : daysWatered + " day" + (daysWatered === 1 ? "" : "s") + " ago"}</div>
-          <div class="bed-card-actions">
-            <button class="btn btn-secondary btn-sm" data-action="water">💧 Water now</button>
-            <button class="btn btn-danger btn-sm" data-action="clear">Clear</button>
-          </div>
+function renderBedCard(bed) {
+  const anyPlanted = bed.plots.some((p) => p.plantName);
+  return `
+    <div class="bed-card" data-bed-id="${bed.id}">
+      <div class="bed-card-header">
+        <span class="bed-name">${escapeHtml(bed.name)}</span>
+        <div class="bed-actions">
+          <button class="btn-icon" data-action="rename" title="Rename">✏️</button>
+          <button class="btn-icon" data-action="remove" title="Remove bed">🗑️</button>
         </div>
-      `;
-    })
-    .join("");
+      </div>
+      <div class="bed-plots">
+        ${bed.plots.map((plot, i) => renderPlot(plot, i)).join("")}
+      </div>
+      ${anyPlanted ? `
+        <div class="bed-card-actions">
+          <button class="btn btn-secondary btn-sm" data-action="water-all">💧 Water all</button>
+        </div>` : ""}
+    </div>
+  `;
+}
+
+function renderPlot(plot, index) {
+  if (!plot.plantName) {
+    return `
+      <button class="plot plot-empty" data-action="plant-slot" data-slot="${index}" title="Plant something here">
+        <span class="plot-mound"></span>
+        <span class="plot-plus">+</span>
+      </button>
+    `;
+  }
+
+  const plant = findPlant(plot.plantName);
+  if (!plant) {
+    return `<button class="plot plot-empty" data-action="plant-slot" data-slot="${index}" title="Plant something here"><span class="plot-mound"></span><span class="plot-plus">+</span></button>`;
+  }
+
+  const daysPlanted = daysSince(plot.plantedDate);
+  const pct = Math.min(100, Math.round((daysPlanted / plant.daysToHarvest) * 100));
+  const ready = daysPlanted >= plant.daysToHarvest;
+  const remaining = plant.daysToHarvest - daysPlanted;
+  const visual = getGrowthVisual(plant, pct);
+  const daysWatered = daysSince(plot.lastWatered);
+  const statusText = ready ? "Ready to harvest!" : `~${remaining} day${remaining === 1 ? "" : "s"} to harvest`;
+  const tooltip = `${plant.name} — planted ${daysPlanted}d ago — ${statusText} — watered ${daysWatered}d ago`;
+
+  return `
+    <div class="plot plot-planted ${ready ? "ready" : ""}" data-slot="${index}" title="${escapeHtml(tooltip)}">
+      ${ready ? '<span class="plot-sparkle">✨</span>' : ""}
+      <button class="plot-mini-btn plot-water" data-action="water-slot" data-slot="${index}" title="Water">💧</button>
+      <button class="plot-mini-btn plot-clear" data-action="clear-slot" data-slot="${index}" title="Clear">🗑️</button>
+      <span class="plot-mound"></span>
+      <span class="plot-sprite" style="font-size:${visual.size}rem;">${visual.emoji}</span>
+      <div class="plot-progress"><div class="plot-progress-fill ${ready ? "ready" : ""}" style="width:${pct}%"></div></div>
+    </div>
+  `;
 }
 
 function escapeHtml(str) {
@@ -248,8 +279,10 @@ function generateId() {
   return "bed_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
 }
 
-function addBed(name) {
-  beds.push({ id: generateId(), name, plantName: null, plantedDate: null, lastWatered: null });
+function addBed(name, slotCount) {
+  const count = Math.min(9, Math.max(1, slotCount || DEFAULT_SLOT_COUNT));
+  const plots = Array.from({ length: count }, emptyPlot);
+  beds.push({ id: generateId(), name, plots });
   saveBeds();
   renderBeds();
 }
@@ -270,32 +303,46 @@ function removeBed(id) {
   renderReminders();
 }
 
-function plantInBed(bedId, plantName) {
+function plantInSlot(bedId, slotIndex, plantName) {
   const bed = beds.find((b) => b.id === bedId);
   if (!bed) return;
-  bed.plantName = plantName;
-  bed.plantedDate = todayISO();
-  bed.lastWatered = todayISO();
+  bed.plots[slotIndex] = {
+    plantName,
+    plantedDate: todayISO(),
+    lastWatered: todayISO(),
+  };
   saveBeds();
   renderBeds();
   renderReminders();
 }
 
-function waterBed(id) {
-  const bed = beds.find((b) => b.id === id);
+function waterSlot(bedId, slotIndex) {
+  const bed = beds.find((b) => b.id === bedId);
   if (!bed) return;
-  bed.lastWatered = todayISO();
+  const plot = bed.plots[slotIndex];
+  if (!plot || !plot.plantName) return;
+  plot.lastWatered = todayISO();
   saveBeds();
   renderBeds();
   renderReminders();
 }
 
-function clearBed(id) {
-  const bed = beds.find((b) => b.id === id);
+function clearSlot(bedId, slotIndex) {
+  const bed = beds.find((b) => b.id === bedId);
   if (!bed) return;
-  bed.plantName = null;
-  bed.plantedDate = null;
-  bed.lastWatered = null;
+  bed.plots[slotIndex] = emptyPlot();
+  saveBeds();
+  renderBeds();
+  renderReminders();
+}
+
+function waterAllInBed(bedId) {
+  const bed = beds.find((b) => b.id === bedId);
+  if (!bed) return;
+  const today = todayISO();
+  bed.plots.forEach((p) => {
+    if (p.plantName) p.lastWatered = today;
+  });
   saveBeds();
   renderBeds();
   renderReminders();
@@ -303,8 +350,9 @@ function clearBed(id) {
 
 /* ---------- Plant picker modal ---------- */
 
-function openPlantModal(bedId) {
+function openPlantModal(bedId, slotIndex) {
   plantModalBedId = bedId;
+  plantModalSlotIndex = slotIndex;
   const month = new Date().getMonth();
   const sorted = [...PLANTS].sort((a, b) => {
     const aIn = a.months.includes(month) ? 0 : 1;
@@ -333,6 +381,7 @@ function openPlantModal(bedId) {
 function closePlantModal() {
   document.getElementById("plantModal").classList.add("hidden");
   plantModalBedId = null;
+  plantModalSlotIndex = null;
 }
 
 /* ---------- Bed add/rename modal ---------- */
@@ -342,14 +391,19 @@ function openBedModal(mode, bedId) {
   bedModalTargetId = bedId || null;
   const title = document.getElementById("bedModalTitle");
   const input = document.getElementById("bedNameInput");
+  const slotsField = document.getElementById("bedSlotsField");
+  const slotsInput = document.getElementById("bedSlotsInput");
 
   if (mode === "rename") {
     const bed = beds.find((b) => b.id === bedId);
     title.textContent = "Rename bed";
     input.value = bed ? bed.name : "";
+    slotsField.style.display = "none";
   } else {
     title.textContent = "Add garden bed";
     input.value = "";
+    slotsInput.value = DEFAULT_SLOT_COUNT;
+    slotsField.style.display = "";
   }
 
   document.getElementById("bedModal").classList.remove("hidden");
@@ -370,7 +424,9 @@ function saveBedModal() {
   if (bedModalMode === "rename") {
     renameBed(bedModalTargetId, name);
   } else {
-    addBed(name);
+    const slotsInput = document.getElementById("bedSlotsInput");
+    const slotCount = parseInt(slotsInput.value, 10) || DEFAULT_SLOT_COUNT;
+    addBed(name, slotCount);
   }
   closeBedModal();
 }
@@ -379,7 +435,6 @@ function saveBedModal() {
 
 function renderReminders() {
   const list = document.getElementById("remindersList");
-  const plantedBeds = beds.filter((b) => b.plantName);
 
   const todayRain =
     weatherData && weatherData.daily && weatherData.daily.precipitation_sum
@@ -401,51 +456,56 @@ function renderReminders() {
     });
   }
 
-  plantedBeds.forEach((bed) => {
-    const plant = findPlant(bed.plantName);
-    if (!plant) return;
+  beds.forEach((bed) => {
+    bed.plots.forEach((plot, i) => {
+      if (!plot.plantName) return;
+      const plant = findPlant(plot.plantName);
+      if (!plant) return;
 
-    const daysPlanted = daysSince(bed.plantedDate);
-    const remaining = plant.daysToHarvest - daysPlanted;
+      const label = bed.plots.length > 1 ? `${bed.name} · Spot ${i + 1}` : bed.name;
+      const daysPlanted = daysSince(plot.plantedDate);
+      const remaining = plant.daysToHarvest - daysPlanted;
 
-    if (remaining <= 0) {
-      reminders.push({
-        type: "harvest",
-        text: `${plant.emoji} ${bed.name} (${plant.name}) should be ready to harvest!`,
-        sub: `Planted ${daysPlanted} days ago.`,
-      });
-    } else if (remaining <= 7) {
-      reminders.push({
-        type: "harvest",
-        text: `${plant.emoji} ${bed.name} (${plant.name}) ready to harvest in ~${remaining} day${remaining === 1 ? "" : "s"}`,
-        sub: "Upcoming harvest.",
-      });
-    }
-
-    const daysWatered = daysSince(bed.lastWatered);
-    const overdue = daysWatered >= plant.wateringDays;
-
-    if (overdue) {
-      if (todayRain >= 5) {
+      if (remaining <= 0) {
         reminders.push({
-          type: "info",
-          text: `${plant.emoji} ${bed.name} (${plant.name}) — recent rain covered watering`,
-          sub: `${todayRain.toFixed(1)} mm fell today, no need to water.`,
+          type: "harvest",
+          text: `${plant.emoji} ${label} (${plant.name}) should be ready to harvest!`,
+          sub: `Planted ${daysPlanted} days ago.`,
         });
-      } else {
+      } else if (remaining <= 7) {
         reminders.push({
-          type: "warn",
-          text: `${plant.emoji} ${bed.name} (${plant.name}) needs watering`,
-          sub: `Last watered ${daysWatered} day${daysWatered === 1 ? "" : "s"} ago.`,
-          bedId: bed.id,
+          type: "harvest",
+          text: `${plant.emoji} ${label} (${plant.name}) ready to harvest in ~${remaining} day${remaining === 1 ? "" : "s"}`,
+          sub: "Upcoming harvest.",
         });
       }
-    }
+
+      const daysWatered = daysSince(plot.lastWatered);
+      const overdue = daysWatered >= plant.wateringDays;
+
+      if (overdue) {
+        if (todayRain >= 5) {
+          reminders.push({
+            type: "info",
+            text: `${plant.emoji} ${label} (${plant.name}) — recent rain covered watering`,
+            sub: `${todayRain.toFixed(1)} mm fell today, no need to water.`,
+          });
+        } else {
+          reminders.push({
+            type: "warn",
+            text: `${plant.emoji} ${label} (${plant.name}) needs watering`,
+            sub: `Last watered ${daysWatered} day${daysWatered === 1 ? "" : "s"} ago.`,
+            bedId: bed.id,
+            slot: i,
+          });
+        }
+      }
+    });
   });
 
   if (reminders.length === 0) {
     list.innerHTML =
-      plantedBeds.length === 0
+      beds.length === 0
         ? '<p class="empty-note">No garden beds yet — add one below to get started.</p>'
         : '<p class="empty-note">All caught up — nothing needs attention today.</p>';
     return;
@@ -454,9 +514,10 @@ function renderReminders() {
   list.innerHTML = reminders
     .map((r) => {
       const cls = r.type === "harvest" ? "harvest" : r.type === "warn" ? "warn" : "info";
-      const button = r.bedId
-        ? `<button class="btn btn-secondary btn-sm" data-mark-watered="${r.bedId}">Mark watered</button>`
-        : "";
+      const button =
+        r.bedId !== undefined
+          ? `<button class="btn btn-secondary btn-sm" data-mark-watered-bed="${r.bedId}" data-mark-watered-slot="${r.slot}">Mark watered</button>`
+          : "";
       return `
         <div class="reminder ${cls}">
           <div class="reminder-text">
@@ -491,8 +552,8 @@ function wireEvents() {
 
   document.getElementById("plantPickerGrid").addEventListener("click", (e) => {
     const btn = e.target.closest(".plant-pick-btn");
-    if (!btn || !plantModalBedId) return;
-    plantInBed(plantModalBedId, btn.dataset.plant);
+    if (!btn || !plantModalBedId || plantModalSlotIndex === null) return;
+    plantInSlot(plantModalBedId, plantModalSlotIndex, btn.dataset.plant);
     closePlantModal();
   });
 
@@ -500,22 +561,27 @@ function wireEvents() {
     const card = e.target.closest(".bed-card");
     if (!card) return;
     const bedId = card.dataset.bedId;
-    const action = e.target.closest("[data-action]")?.dataset.action;
-    if (!action) return;
 
-    if (action === "plant") openPlantModal(bedId);
+    const actionEl = e.target.closest("[data-action]");
+    if (!actionEl) return;
+    const action = actionEl.dataset.action;
+    const slot = actionEl.dataset.slot !== undefined ? parseInt(actionEl.dataset.slot, 10) : null;
+
+    if (action === "plant-slot") openPlantModal(bedId, slot);
+    else if (action === "water-slot") waterSlot(bedId, slot);
+    else if (action === "clear-slot") {
+      if (confirm("Clear this plot?")) clearSlot(bedId, slot);
+    } else if (action === "water-all") waterAllInBed(bedId);
     else if (action === "rename") openBedModal("rename", bedId);
     else if (action === "remove") {
-      if (confirm("Remove this garden bed?")) removeBed(bedId);
-    } else if (action === "water") waterBed(bedId);
-    else if (action === "clear") {
-      if (confirm("Clear this bed? This removes the current plant.")) clearBed(bedId);
+      if (confirm("Remove this garden bed and everything planted in it?")) removeBed(bedId);
     }
   });
 
   document.getElementById("remindersList").addEventListener("click", (e) => {
-    const bedId = e.target.dataset.markWatered;
-    if (bedId) waterBed(bedId);
+    const btn = e.target.closest("[data-mark-watered-bed]");
+    if (!btn) return;
+    waterSlot(btn.dataset.markWateredBed, parseInt(btn.dataset.markWateredSlot, 10));
   });
 }
 

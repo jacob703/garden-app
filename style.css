@@ -233,6 +233,36 @@ input {
   margin-top: 0.1rem;
 }
 
+/* Dedication */
+
+.dedication {
+  max-width: 1100px;
+  margin: 1.1rem auto 0;
+  padding: 0.75rem 1.5rem 0;
+  text-align: center;
+  font-size: 0.92rem;
+  color: var(--earth);
+  font-weight: 600;
+}
+
+.dedication-heart {
+  animation: bob 2.6s ease-in-out infinite;
+  display: inline-block;
+  margin-right: 0.3rem;
+}
+
+.dedication strong {
+  color: var(--green-dark);
+}
+
+.dedication-sign {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
 /* Layout */
 
 .layout {
@@ -473,69 +503,154 @@ input {
   gap: 0.3rem;
 }
 
-.bed-empty {
+/* Planter box: grid of individual plots inside a bed */
+
+@keyframes grow-bounce {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-3px) scale(1.06); }
+}
+
+@keyframes ready-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(243, 184, 78, 0.55), inset 0 0 0 2px rgba(243, 184, 78, 0.8); }
+  50% { box-shadow: 0 0 0 6px rgba(243, 184, 78, 0), inset 0 0 0 2px rgba(243, 184, 78, 0.8); }
+}
+
+@keyframes sparkle-spin {
+  0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; }
+  50% { transform: scale(1.25) rotate(15deg); opacity: 0.7; }
+}
+
+.bed-plots {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 100px));
+  justify-content: start;
+  gap: 7px;
+  background: linear-gradient(180deg, #b0854f, #8a5c34);
+  border: 3px solid var(--earth);
+  border-radius: var(--radius-sm);
+  padding: 8px;
+}
+
+.plot {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 12px;
+  background: radial-gradient(circle at 50% 35%, #6e4a2c, #4d3320);
+  overflow: hidden;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.7rem;
-  padding: 1.6rem 0.5rem;
-  color: var(--text-muted);
-  font-size: 0.85rem;
-  text-align: center;
+  border: none;
+  padding: 0;
 }
 
-.bed-empty::before {
-  content: "🌱";
-  font-size: 1.8rem;
-  animation: bob 3s ease-in-out infinite;
+.plot-mound {
+  position: absolute;
+  bottom: 6px;
+  width: 68%;
+  height: 34%;
+  border-radius: 50% 50% 45% 45% / 65% 65% 35% 35%;
+  background: radial-gradient(ellipse at 50% 20%, #8a6138, #5c3f24);
 }
 
-.bed-plant-row {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  font-size: 1.08rem;
+.plot-empty {
+  cursor: pointer;
+  background: radial-gradient(circle at 50% 40%, #5c3f24, #402c1a);
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.plot-empty .plot-mound {
+  border: 2px dashed rgba(255, 240, 210, 0.35);
+  background: rgba(255, 240, 210, 0.06);
+}
+
+.plot-empty .plot-plus {
+  position: relative;
+  z-index: 1;
+  color: rgba(255, 240, 210, 0.7);
+  font-size: 1.4rem;
   font-weight: 800;
 }
 
-.bed-plant-row .plant-emoji {
-  font-size: 1.8rem;
+.plot-empty:hover {
+  transform: scale(1.05);
+  background: radial-gradient(circle at 50% 40%, #6e4a2c, #4d3320);
 }
 
-.bed-meta {
-  color: var(--text-muted);
-  font-size: 0.82rem;
+.plot-planted {
+  cursor: default;
 }
 
-.progress-track {
-  width: 100%;
-  height: 10px;
-  border-radius: 999px;
-  background: var(--earth-light);
-  overflow: hidden;
-  border: 1px solid var(--card-border);
+.plot-planted.ready {
+  animation: ready-glow 1.8s ease-in-out infinite;
 }
 
-.progress-fill {
+.plot-sprite {
+  position: relative;
+  z-index: 1;
+  line-height: 1;
+  transition: font-size 0.3s ease;
+  animation: grow-bounce 3.5s ease-in-out infinite;
+}
+
+.plot-sparkle {
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.9rem;
+  z-index: 2;
+  animation: sparkle-spin 1.6s ease-in-out infinite;
+}
+
+.plot-mini-btn {
+  position: absolute;
+  top: 3px;
+  z-index: 2;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 253, 245, 0.85);
+  font-size: 0.7rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+  transition: transform 0.15s ease;
+}
+
+.plot-mini-btn:hover {
+  transform: scale(1.2);
+}
+
+.plot-water {
+  left: 3px;
+}
+
+.plot-clear {
+  right: 3px;
+}
+
+.plot-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 5px;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 1;
+}
+
+.plot-progress-fill {
   height: 100%;
   background: linear-gradient(90deg, var(--green), var(--green-dark));
-  border-radius: 999px;
   transition: width 0.3s ease;
 }
 
-.progress-fill.ready {
+.plot-progress-fill.ready {
   background: linear-gradient(90deg, var(--warn), var(--danger));
-}
-
-.bed-status {
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: var(--green-dark);
-}
-
-.bed-status.ready {
-  color: var(--danger);
 }
 
 .bed-card-actions {
@@ -615,6 +730,25 @@ input {
 }
 
 .modal-body input[type="text"]:focus {
+  outline: none;
+  border-color: var(--green);
+}
+
+.field-spaced {
+  margin-top: 0.9rem;
+}
+
+.modal-body input[type="number"] {
+  width: 100%;
+  padding: 0.6rem 0.8rem;
+  border-radius: var(--radius-sm);
+  border: 2px solid var(--card-border);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.modal-body input[type="number"]:focus {
   outline: none;
   border-color: var(--green);
 }

@@ -24,6 +24,12 @@
   <div id="forecastStrip" class="forecast-strip"></div>
 </header>
 
+<div class="dedication">
+  <span class="dedication-heart">💌</span>
+  For my dearest <strong>Emily</strong> — for your beautiful garden and the love you grow in it.
+  <span class="dedication-sign">With all my love, Jacob 🌻</span>
+</div>
+
 <main class="layout">
 
   <section class="panel" id="whatToPlantPanel">
@@ -76,6 +82,10 @@
     <div class="modal-body">
       <label for="bedNameInput">Bed / pot name</label>
       <input type="text" id="bedNameInput" placeholder="e.g. Raised bed 1, Balcony pot">
+      <div id="bedSlotsField" class="field-spaced">
+        <label for="bedSlotsInput">Planting spots</label>
+        <input type="number" id="bedSlotsInput" min="1" max="9" value="4">
+      </div>
       <div class="modal-actions">
         <button id="saveBedBtn" class="btn btn-primary">Save</button>
       </div>
