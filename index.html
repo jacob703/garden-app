@@ -51,7 +51,10 @@
   <section class="panel beds-panel">
     <div class="beds-panel-header">
       <h2>🪴 Garden beds</h2>
-      <button id="addBedBtn" class="btn btn-primary">+ Add bed</button>
+      <div class="beds-panel-actions">
+        <button id="shareBedsBtn" class="btn btn-secondary btn-sm">🔗 Share my garden</button>
+        <button id="addBedBtn" class="btn btn-primary">+ Add bed</button>
+      </div>
     </div>
     <div id="bedsGrid" class="beds-grid"></div>
   </section>
@@ -62,7 +65,38 @@
     <div class="garth-scene">
       <span id="garthSpeech" class="garth-speech hidden"></span>
       <span class="garth-bed"></span>
-      <span id="garthSprite" class="garth-sprite garth-sleeping">🐶</span>
+      <span id="garthSprite" class="garth-sprite garth-sleeping">
+        <svg class="garth-svg" viewBox="0 0 16 18" shape-rendering="crispEdges" aria-label="Garth the cavoodle">
+          <rect x="6" y="0" width="4" height="1" fill="#cf9a5c"/>
+          <rect x="5" y="1" width="6" height="1" fill="#cf9a5c"/>
+          <rect x="4" y="2" width="7" height="1" fill="#cf9a5c"/><rect x="11" y="2" width="2" height="1" fill="#e8c592"/>
+          <rect x="4" y="3" width="8" height="1" fill="#cf9a5c"/><rect x="11" y="3" width="3" height="1" fill="#cf9a5c"/>
+          <rect x="4" y="4" width="4" height="1" fill="#cf9a5c"/><rect x="9" y="4" width="4" height="1" fill="#cf9a5c"/>
+          <g class="eye-open">
+            <rect x="8" y="4" width="1" height="1" fill="#241a12"/>
+            <rect x="9" y="4" width="1" height="1" fill="#fdf1da"/>
+          </g>
+          <g class="eye-closed">
+            <rect x="8" y="4.3" width="2" height="0.5" fill="#241a12"/>
+          </g>
+          <rect x="4" y="5" width="9" height="1" fill="#cf9a5c"/><rect x="14" y="5" width="1" height="1" fill="#8a5228"/>
+          <rect x="4" y="6" width="10" height="1" fill="#cf9a5c"/><rect x="14" y="6" width="2" height="1" fill="#241a12"/>
+          <g class="mouth-tongue">
+            <rect x="13" y="6.6" width="1" height="0.8" fill="#e8899a"/>
+          </g>
+          <rect x="3" y="7" width="12" height="1" fill="#8a5228"/>
+          <rect x="3" y="8" width="13" height="1" fill="#cf9a5c"/>
+          <rect x="3" y="9" width="4" height="1" fill="#cf9a5c"/><rect x="7" y="9" width="3" height="1" fill="#f7e6c8"/><rect x="10" y="9" width="6" height="1" fill="#cf9a5c"/>
+          <rect x="2" y="10" width="5" height="1" fill="#cf9a5c"/><rect x="7" y="10" width="3" height="1" fill="#f7e6c8"/><rect x="10" y="10" width="6" height="1" fill="#cf9a5c"/><rect x="1" y="10" width="1" height="1" fill="#8a5228"/>
+          <rect x="2" y="11" width="5" height="1" fill="#cf9a5c"/><rect x="7" y="11" width="3" height="1" fill="#f7e6c8"/><rect x="10" y="11" width="6" height="1" fill="#cf9a5c"/><rect x="0" y="11" width="2" height="1" fill="#8a5228"/>
+          <rect x="2" y="12" width="12" height="1" fill="#cf9a5c"/><rect x="0" y="12" width="2" height="1" fill="#241a12"/>
+          <rect x="2" y="13" width="12" height="1" fill="#cf9a5c"/>
+          <rect x="3" y="14" width="3" height="1" fill="#cf9a5c"/><rect x="6" y="14" width="1" height="1" fill="#8a5228"/><rect x="7" y="14" width="2" height="1" fill="#cf9a5c"/><rect x="9" y="14" width="1" height="1" fill="#8a5228"/><rect x="10" y="14" width="3" height="1" fill="#cf9a5c"/>
+          <rect x="3" y="15" width="3" height="1" fill="#e8c592"/><rect x="10" y="15" width="3" height="1" fill="#e8c592"/>
+          <rect x="3" y="16" width="3" height="1" fill="#f7e6c8"/><rect x="10" y="16" width="3" height="1" fill="#f7e6c8"/>
+          <rect x="3" y="17" width="3" height="1" fill="#241a12"/><rect x="10" y="17" width="3" height="1" fill="#241a12"/>
+        </svg>
+      </span>
     </div>
     <div class="garth-actions">
       <button id="garthTreatBtn" class="btn btn-secondary btn-sm">🦴 Give Garth a treat</button>
@@ -85,6 +119,23 @@
     </div>
     <div class="modal-body">
       <div id="plantPickerGrid" class="plant-picker-grid"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Share/import garden modal -->
+<div id="shareModal" class="modal-overlay hidden">
+  <div class="modal modal-small">
+    <div class="modal-header">
+      <h2>Share your garden</h2>
+      <button id="closeShareModal" class="btn-icon" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="panel-sub">Copy this link and open it on another device (like your phone) to bring these garden beds over there too.</p>
+      <input type="text" id="shareLinkInput" readonly>
+      <div class="modal-actions">
+        <button id="copyShareLinkBtn" class="btn btn-primary">Copy link</button>
+      </div>
     </div>
   </div>
 </div>

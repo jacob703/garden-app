@@ -116,6 +116,79 @@ function saveBeds() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(beds));
 }
 
+/* ---------- Cross-device share/import ---------- */
+
+function encodeGardenData(bedsData) {
+  return btoa(unescape(encodeURIComponent(JSON.stringify(bedsData))));
+}
+
+function decodeGardenData(encoded) {
+  return JSON.parse(decodeURIComponent(escape(atob(encoded))));
+}
+
+function buildShareLink() {
+  const encoded = encodeGardenData(beds);
+  const url = new URL(window.location.href);
+  url.hash = `garden=${encoded}`;
+  return url.toString();
+}
+
+function openShareModal() {
+  const input = document.getElementById("shareLinkInput");
+  input.value = buildShareLink();
+  document.getElementById("shareModal").classList.remove("hidden");
+  input.focus();
+  input.select();
+}
+
+function closeShareModal() {
+  document.getElementById("shareModal").classList.add("hidden");
+}
+
+function copyShareLink() {
+  const input = document.getElementById("shareLinkInput");
+  input.select();
+  const btn = document.getElementById("copyShareLinkBtn");
+  const showCopied = () => {
+    const original = btn.textContent;
+    btn.textContent = "Copied!";
+    setTimeout(() => {
+      btn.textContent = original;
+    }, 1800);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(input.value).then(showCopied).catch(() => {
+      document.execCommand("copy");
+      showCopied();
+    });
+  } else {
+    document.execCommand("copy");
+    showCopied();
+  }
+}
+
+function checkForImport() {
+  const hash = window.location.hash;
+  if (!hash.startsWith("#garden=")) return;
+
+  const encoded = hash.slice("#garden=".length);
+  try {
+    const imported = decodeGardenData(encoded);
+    if (!Array.isArray(imported)) throw new Error("Invalid garden data");
+    const plotCount = imported.reduce((n, b) => n + (Array.isArray(b.plots) ? b.plots.filter((p) => p.plantName).length : 0), 0);
+    const ok = confirm(
+      `Import this garden? It has ${imported.length} bed(s) with ${plotCount} planted spot(s). This will replace the garden currently saved on this device.`
+    );
+    if (ok) {
+      beds = imported.map(migrateBed);
+      saveBeds();
+    }
+  } catch (e) {
+    alert("That garden link looks invalid or corrupted.");
+  }
+  history.replaceState(null, "", window.location.pathname + window.location.search);
+}
+
 /* ---------- Season header ---------- */
 
 function renderSeasonHeader() {
@@ -660,7 +733,6 @@ function setGarthState(state, speech) {
   const bubble = document.getElementById("garthSpeech");
   if (!sprite || !bubble) return;
   sprite.className = `garth-sprite garth-${state}`;
-  sprite.textContent = state === "happy" ? "🐶💕" : state === "sniffing" ? "🐶" : "🐶";
   if (speech) {
     bubble.textContent = speech;
     bubble.classList.remove("hidden");
@@ -669,20 +741,49 @@ function setGarthState(state, speech) {
   }
 }
 
+function moveGarthTo(pct, state) {
+  const sprite = document.getElementById("garthSprite");
+  if (!sprite) return;
+  sprite.style.left = `${pct}%`;
+  setGarthState(state, null);
+}
+
+function spawnGarthHearts() {
+  const scene = document.querySelector(".garth-scene");
+  const sprite = document.getElementById("garthSprite");
+  if (!scene || !sprite) return;
+  const symbols = ["💕", "💖", "✨", "🐾"];
+  const baseLeft = sprite.style.left || "50%";
+  for (let i = 0; i < 5; i++) {
+    const el = document.createElement("span");
+    el.className = "garth-heart";
+    el.textContent = symbols[Math.floor(Math.random() * symbols.length)];
+    el.style.left = `calc(${baseLeft} + ${Math.random() * 40 - 20}px)`;
+    el.style.setProperty("--dx", `${Math.random() * 50 - 25}px`);
+    el.style.animationDelay = `${Math.random() * 0.3}s`;
+    scene.appendChild(el);
+    el.addEventListener("animationend", () => el.remove());
+  }
+}
+
 function garthIdleCycle() {
   if (Date.now() < garthBusyUntil) {
     scheduleGarthCycle();
     return;
   }
-  const names = plantedPlantNames();
-  const willSniff = Math.random() < 0.5;
 
-  if (willSniff) {
-    const target = names.length ? names[Math.floor(Math.random() * names.length)] : null;
-    setGarthState("sniffing", target ? `Garth is sniffing the ${target}! 👃` : "Garth is patrolling the empty beds 🐾");
+  if (Math.random() < 0.55) {
+    const targetPct = 15 + Math.random() * 70;
+    moveGarthTo(targetPct, "walking");
     setTimeout(() => {
-      if (Date.now() >= garthBusyUntil) setGarthState("sleeping", null);
-    }, 5000);
+      if (Date.now() < garthBusyUntil) return;
+      const names = plantedPlantNames();
+      const target = names.length ? names[Math.floor(Math.random() * names.length)] : null;
+      setGarthState("sniffing", target ? `Garth is sniffing the ${target}! 👃` : "Garth is patrolling the empty beds 🐾");
+      setTimeout(() => {
+        if (Date.now() >= garthBusyUntil) setGarthState("sleeping", null);
+      }, 4500);
+    }, 1800);
   } else {
     setGarthState("sleeping", null);
   }
@@ -700,11 +801,12 @@ function giveGarthTreat() {
   saveGarthTreats(count);
   renderGarthTreatCount(count);
 
-  garthBusyUntil = Date.now() + 3000;
+  garthBusyUntil = Date.now() + 3200;
   setGarthState("happy", "Woof! Thank you!! 🦴");
+  spawnGarthHearts();
   setTimeout(() => {
     if (Date.now() >= garthBusyUntil) setGarthState("sleeping", null);
-  }, 3000);
+  }, 3200);
 }
 
 function renderGarthTreatCount(count) {
@@ -772,11 +874,19 @@ function wireEvents() {
   });
 
   document.getElementById("garthTreatBtn").addEventListener("click", giveGarthTreat);
+
+  document.getElementById("shareBedsBtn").addEventListener("click", openShareModal);
+  document.getElementById("closeShareModal").addEventListener("click", closeShareModal);
+  document.getElementById("shareModal").addEventListener("click", (e) => {
+    if (e.target.id === "shareModal") closeShareModal();
+  });
+  document.getElementById("copyShareLinkBtn").addEventListener("click", copyShareLink);
 }
 
 /* ---------- Init ---------- */
 
 function init() {
+  checkForImport();
   renderSeasonHeader();
   renderPlantNow();
   renderBeds();
